@@ -1,4 +1,4 @@
-``
+``` js
 // app.use("/", (request, response) => {
 //     response.send('Hello from dashboard Express');
 // })
@@ -9,4 +9,4 @@ app.use("/test", (request, response) => {
 })
 // above handler not only works for /test but for anything that starts with /test but not for /test123 
 // /test/123 will work but /test123 will not work
-``
+```
