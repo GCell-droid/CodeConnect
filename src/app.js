@@ -1,18 +1,39 @@
-
 const express = require('express');
 const app = express();
-// app.use("/", (request, response) => {
-//     response.send('Hello from dashboard Express');
+// this will match all http methods api calls to /test
+// app.use("/user", (request, response) => {
+//     response.send('Hello test user');
 // })
-// above handler not only works for '/' but for anything that starts with / that's why below handler were overwritten and not working 
 
-app.use("/test", (request, response) => {
-    response.send('Hello from test Express');
+//this will match only get http method api calls to /test
+// app.get("/user", (request, response) => {
+//     console.log(request.query)
+//     response.send('Hello user');
+// })
+// app.get("/user", (request, response) => {
+//     console.log(request.query)
+//     console.log(request.params)
+//     response.send('Hello user');
+// })
+//dynamic route
+app.get("/user/:userid", (request, response) => {
+    console.log(request.query)
+    console.log(request.params)
+    response.send('Hello user');
 })
-// above handler not only works for /test but for anything that starts with /test but not for /test123 
-// /test/123 will work but /test123 will not work
-app.use("/hello", (request, response) => {
-    response.send('Hello Hello Hello');
+//this will match only post http method api calls to /test
+app.post("/user", (request, response) => {
+    console.log("Save Data")
+    response.send('Success');
+})
+app.delete("/user", (request, response) => {
+    console.log("Deleting")
+    response.send('Data removed');
+})
+
+//order matters so it will not interfere with above handlers
+app.use("/user", (request, response) => {
+    response.send('Hello test user');
 })
 app.listen(3005, () => {
     console.log("Only runs when server starts http://localhost:3005")
