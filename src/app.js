@@ -1,9 +1,10 @@
 
 const express = require('express');
 const app = express();
-app.use("/", (request, response) => {
-    response.send('Hello from dashboard Express');
-})
+// app.use("/", (request, response) => {
+//     response.send('Hello from dashboard Express');
+// })
+// above handler not only but for anything that starts with / that's why below handler were overwritten and not working 
 app.use("/test", (request, response) => {
     response.send('Hello from test Express');
 })
