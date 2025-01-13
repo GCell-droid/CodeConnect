@@ -1,4 +1,6 @@
-## Code
+# Namaste Node
+## Lecture 4 Routes and Requests
+### Code
 ``` js
 // app.use("/", (request, response) => {
 //     response.send('Hello from dashboard Express');
@@ -67,3 +69,39 @@ http://localhost:3005/user?userID=123, ? means query and if we want to add more 
 
 - params - making routes dynamic
 -- http://localhost:3005/user/:user, we get param using request.params so http://localhost:3005/user/123 will give user:123 in console eg http://localhost:3005/user/123?id=123&name=np will output 
+
+____    
+
+
+
+## Lecture 5 Middlewares
+
+### General points about route handlers
+ - If we don't send any response back in .use route handler then our api will keep sending request and looping ,after sometime browser will hit timeout.
+ - One route can have multiple route handlers as in code. First route handler will work when we go to /user . As js runs line by line
+ ``` js
+ // we can use multiple handlers for the same route
+app.use('/user', (req, res) => {
+    res.send('Hello World');
+}, (req, res) => {
+    res.send('Hello World Again');
+})
+app.listen(7777, () => {
+    console.log('Server is running on port  http://localhost:7777');
+});
+ ```
+ - If first route handler is not responding then request will hang and timeout will occur when api is called.(case: not using next() )
+ - if we use next() "provided by express" then if first handler doesn't response it will go to next and try responding if there is.
+ ``` js
+ //Code //first handler responed
+    app.use('/user', (req, res, next) => {
+    console.log("first handler");
+    res.send('responed by first handler');
+    next();
+}, (req, res) => {
+    console.log("second handler");
+    res.send('responed by second handler');
+})
+ //Error will be like Cannot set headers after they are sent to the client
+ ```
+ - if we use next() after responding then first handler will response back but second handler will also run ---> this will give error in console but our API will work fine . Don't Ignore these error as code is still running after response is sent back
