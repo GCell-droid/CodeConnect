@@ -73,7 +73,6 @@ http://localhost:3005/user?userID=123, ? means query and if we want to add more 
 ____    
 
 
-
 ## Lecture 5 Middlewares
 
 ### General points about route handlers
@@ -141,11 +140,33 @@ app.listen(7777, () => {
  - Each function that express goes through before sending response back are called middlewares. 
  // GET /users => middlewarechain => request handler -> if not found then it hangs
 ##### See Auth code
+``` js
+const userAuth = (req, res, next) => {
+    const token = "xyz";
+    if (token != "xyz") {
+        res.status(401).send("Unauthorized !! You are not an user");
+    }
+    else {
+        next();
+    }
+};
+app.use('/admin', adminAuth);
+// If we don't use middleware then we have to write the same code for auth for both admin code /update and /delete again
+app.get('/admin/updateData', (req, res) => {
+    console.log("At /admin/updateData path");
+    res.send('Admin data updated');
+})
+app.get('/admin/deleteData', (req, res) => {
+    console.log("At /admin/updateData path");
+    res.send('User Data Deleted');
+})
+```
  ##### Http status codes 
 
 - 404 request not found
 - 200 everything ok
-- 401 unauthorised */
+- 401 unauthorised
+- 500 internal server error
 #### .use v/s .all not required
 
 ### Error handling in Node
