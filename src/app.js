@@ -3,8 +3,8 @@ const app = express();
 // we can use multiple handlers for the same route
 app.use('/user', (req, res, next) => {
     console.log("first handler");
-    // res.send('responed by first handler');
-    next();
+    res.send('responed by first handler');
+    // next();
 }, (req, res) => {
     console.log("second handler");
     res.send('responed by second handler');

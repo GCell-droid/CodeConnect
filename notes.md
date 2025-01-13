@@ -105,3 +105,19 @@ app.listen(7777, () => {
  //Error will be like Cannot set headers after they are sent to the client
  ```
  - if we use next() after responding then first handler will response back but second handler will also run ---> this will give error in console but our API will work fine . Don't Ignore these error as code is still running after response is sent back
+ 
+ 
+- As soon as our code reaches next(), then next handler goes into callstack and executes line by line. Then second handler starts running when it completes running after sending response back("Second response") then second handlers finishes.
+ execution context moves out of callstack and now control return back to function which called next. then response 1 function starts running and gives error as we have already send response back. See Below Code
+ ``` js 
+ app.use('/user', (req, res, next) => {
+    console.log("first handler");
+    next(); // goes to next handler and push to callstack
+    res.send('responed by first handler');//after second handler completes control return back here and it executes and give errors
+}, (req, res) => {
+    console.log("second handler");
+    res.send('responed by second handler');
+})
+ ```
+
+ - If after calling next() there is no route handler , then we will get error
