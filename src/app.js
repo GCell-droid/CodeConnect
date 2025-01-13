@@ -1,42 +1,17 @@
 const express = require('express');
 const app = express();
-const { adminAuth } = require('./middlewares/adminAuth.js');
-const { userAuth } = require('./middlewares/userAuth.js');
-// app.use('/user', (req, res, next) => {
-//     console.log("first handler");
-//     // res.send('responed by first handler');
-//     next();
-// });
-// //works as previous ones
-// app.use('/user', (req, res, next) => {
-//     console.log("second handler");
-//     res.send('responed by second handler');
-//     next();
-// });
-
-// these functions are called middlewares
-// when we go to /user then it will go though middlewares then respone will be sent if there
-
-
-//Authorisation
-app.use('/admin', adminAuth);
-// If we don't use middleware then we have to write the same code for auth for both admin code /update and /delete again
-app.get('/admin/updateData', (req, res) => {
-    console.log("At /admin/updateData path");
-    res.send('Admin data updated');
+app.get('/user', (req, res, next) => {
+    // try {
+    throw new Error('Random error');
+    res.send("User Responded")
+    // } catch {
+    //     res.status(500).send("User Error Occured")
+    // }
 })
-app.get('/admin/deleteData', (req, res) => {
-    console.log("At /admin/updateData path");
-    res.send('User Data Deleted');
+app.use('/', (err, req, res, next) => {
+    if (err)
+        res.status(500).send("Gracefull Error occured")
 })
-app.post('/user/login', (req, res) => {
-    res.send("Login success")
-})
-app.get('/user', userAuth, (req, res, next) => { //another way of writing just for noticing
-    console.log("User Authorised Success");
-    res.send("Welcome User")
-}
-);
 app.listen(7777, () => {
-    console.log('Server is running on port  http://localhost:7777');
-});
+    console.log("Listening to port 7777")
+})

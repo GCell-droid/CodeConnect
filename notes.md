@@ -140,5 +140,38 @@ app.listen(7777, () => {
 
  - Each function that express goes through before sending response back are called middlewares. 
  // GET /users => middlewarechain => request handler -> if not found then it hangs
+##### See Auth code
+ ##### Http status codes 
 
+- 404 request not found
+- 200 everything ok
+- 401 unauthorised */
 #### .use v/s .all not required
+
+### Error handling in Node
+- Always use try and catch to handle erorr gracefully
+- We can also use wildcard error handling using .use('/) but always at last of code.
+- If we want to handle error gracefully using .use then we have to give one parameter to route handler . Sequence goes like this <b> err, req, res, next</b>  for 4 parameter
+#### Code
+``` js
+const express = require('express');
+const app = express();
+app.get('/user', (req, res, next) => {
+    // try {
+    throw new Error('Random error');
+    res.send("User Responded")
+    // } catch {
+    //     res.status(500).send("User Error Occured")
+    // }
+})
+app.use('/', (err, req, res, next) => {
+    if (err)
+        res.status(500).send("Gracefull Error occured")
+})
+app.listen(7777, () => {
+    console.log("Listening to port 7777")
+})
+//output gracefull error of above code
+//if we don't use .use at last then it will not handle all errors and can give ugly error.
+//if there is try and catch then it will handle error always
+```
