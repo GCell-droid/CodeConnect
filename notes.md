@@ -121,3 +121,24 @@ app.listen(7777, () => {
  ```
 
  - If after calling next() there is no route handler , then we will get error
+
+ ### Why we need multiple route handlers ? 
+ - For security purposes and making our code clean by not repeating code again and again.
+ ---
+ #### Middlewares: 
+ - Middleware functions are functions that have access to the request object (req), the response object (res), and the next middleware function in the application’s request-response cycle. The next middleware function is commonly denoted by a variable named next.
+
+ #### Middleware functions can perform the following tasks:
+
+- Execute any code.
+- Make changes to the request and the response objects.
+- End the request-response cycle.
+- Call the next middleware function in the stack.
+- If the current middleware function does not end the request-response cycle, it must call next() to pass control to the next middleware function. Otherwise, the request will be left hanging.
+----
+- When we sent request to express server then express will go through all handlers and try to response back if there is no response to sent then it hangs.
+
+ - Each function that express goes through before sending response back are called middlewares. 
+ // GET /users => middlewarechain => request handler -> if not found then it hangs
+
+#### .use v/s .all not required
