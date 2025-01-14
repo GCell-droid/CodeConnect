@@ -196,3 +196,91 @@ app.listen(7777, () => {
 //if we don't use .use at last then it will not handle all errors and can give ugly error.
 //if there is try and catch then it will handle error always
 ```
+
+
+## Lecture 6 Database
+
+- We use mongoose npm library https://mongoosejs.com/docs/
+- Right way to connect to database is to first of all establish connection with database then start listening on server, this method will not cause abnormality(if db connection is not establish then server will not listen)
+##### Code
+``` js
+//database.js
+const mongoose = require('mongoose');
+const dbconnect = async () => { //mongoose.connect returns promise
+    await mongoose.connect("mongodb+srv://niteshpariharprojects:KERv7Qr6GCMaXkoK@connectdevelopers.ij0qf.mongodb.net/")
+};
+module.exports = {
+    dbconnect
+}
+/////////
+const { dbconnect } = require('./config/database')
+const app = express();
+dbconnect().then(() => {
+    console.log("DB connected Success") //if db connection success then only server should listens
+    app.listen(7777, () => {
+        console.log("Listening to http://localhost:7777")
+    })
+}).catch(() => {
+    console.log("DB not connect")
+})
+```
+- Schema 
+- Model: It is basically class which will make its instance when we want to add data in collection
+``` js
+// for user schema
+const mongoose = require('mongoose');
+const userSchema = mongoose.Schema({
+    firstName: {
+        type: String
+    },
+    lastName: {
+        type: String
+    },
+    gender: {
+        type: String
+    },
+    emailId: {
+        type: String
+    }
+})
+const UserModel = mongoose.model("User", userSchema)
+// model name always starts with capital letter
+module.exports = UserModel
+//model is basically class which will make its instance when we want to add user collection
+```
+
+- Using .save on instance of user model and adding document (data) to user collection
+``` js
+const express = require('express');
+//correct way to connect to db
+const { dbconnect } = require('./config/database')
+const UserModel = require('./models/user.js');
+const app = express();
+app.post('/signup', async (req, res) => { //add user
+    //creating new instance of the usermodel
+    const user = new UserModel({
+        firstName: "Virat",
+        lastName: "Kohli",
+        gender: "Male",
+        emailId: "viratkohli@gmail.com"
+    })
+    
+    try{
+    // to save document in user collection in DevConnect Db.. use '.save' on instance of UserModel 
+    await user.save() //.save returns promise so use async function
+    res.send("Data Added Success")
+    }catch{
+        res.status(400).send("Error signing up")
+    }
+})
+dbconnect().then(() => {
+    console.log("DB connected Success") //if db connection success then only server should listens
+    app.listen(7777, () => {
+        console.log("Listening to http://localhost:7777")
+    })
+}).catch(() => {
+    console.log("DB not connect")
+})
+```
+- __v in mongo document maintains version of document ; _id is given by mongo and we can also change it but never do it
+- Whenever we use some Db operations always wrap them into try and catch block to handle error
