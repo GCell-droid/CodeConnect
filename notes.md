@@ -284,3 +284,108 @@ dbconnect().then(() => {
 ```
 - __v in mongo document maintains version of document ; _id is given by mongo and we can also change it but never do it
 - Whenever we use some Db operations always wrap them into try and catch block to handle error
+
+----------
+-----
+____
+## Lecture 7 API's
+
+##### Difference between JSON and js object
+JSON (JavaScript Object Notation) is a text-based data format designed for data exchange. It is language-independent and follows a strict syntax for storing and transmitting data.
+- JSON keys and string values must be enclosed in double quotes.(Json need key as string also)
+- It supports only limited data types such as strings, numbers, booleans, arrays, objects, and null.
+- Used for transferring data between servers and applications.
+
+JS Object
+- A JavaScript Object is a data structure within JavaScript, used to store key-value pairs. It supports a wider range of data types and operations compared to JSON.
+-Keys are unquoted (but quotes can be used if needed), and strings can use single or double quotes.
+- IMP--JavaScript Objects can include methods (functions as values).
+- These are manipulated directly in JavaScript programs.
+----
+### Sending Data Using API'S
+- When we console req.body after sending data then we get undefined as we are sending data in json format but js understand js object so we need middleware that converts (using express json).
+- Using middleware,app.use(express.json()) this will work for every request that server recieves
+- app.use(()=>{}) then function will work for every request as we did't give any route
+``` js
+app.use(express.json());// using middleware to use json format //this will work for every request to server as we are not specifying path
+app.post('/signup', async (req, res) => { 
+    //add user
+    // console.log(req); //give big object comes with request
+    // console.log(req.body);//our user data will come in body as we are adding in post request //before express.json//undefined as we are not using middleware to convert json into js readable format
+    // console.log(req.body) // after using middleware
+    creating new instance of the usermodel
+    const user = new UserModel(req.body);
+   })
+   await user.save();
+   res.send("Data Added Successfully")
+
+```
+### Getting data from database
+``` js
+app.get('/user', async (req, res) => {
+    try {
+        const userEmail = req.body.emailId;
+        const user = await UserModel.find({ emailId: userEmail }); //return arrays which match emailId
+        if (user.length === 0) {
+            res.status(404).send("User Not Found");
+        } else {
+            res.send(user);
+        }
+    }
+    catch {
+        res.status(404).send("Unexpected Error")
+    }
+})
+        // const feed = await UserModel.find({}); //if empty then return all elements
+
+```
+### Updating user
+``` js
+        //return user document before
+        const user = await UserModel.findOneAndUpdate({ emailId: emailId }, req.body);
+        //function findOneAndUpdate(filter, update, options) {}
+```
+- There are something called option which can be passed and controlling what document will return after/befor update
+- findOneAndUpdate is atomic operation
+
+----------
+-----
+____
+## Lecture 8 Data Sanitization
+
+### In schema (at database level checks) || Schema Types
+- adding constrain to schema
+- required - it is mandatory to enter, specifying in user schema
+- unique - to check if email is taken or not (it should be unquiely identified)
+- default value
+- minlength of string
+- min value
+- trim remove whitespaces 
+- custom validation function - validate(value) function, by default this only works for adding new object. So it will not work for patch. We can 'on' it on update by giving option (runValidator:true) to findbyidandupdate()
+- timestamp add with schema , It will automatically add createdAt, UpdatedAt in document
+- Validate function:
+``` js
+//validate function in schema
+gender: {
+        type: String,
+        validate(value) {
+            if (!["male", "female"].includes(value)) {
+                throw new Error("Gender Not Valid")
+            }
+        }
+    },
+//activating for patch also
+const user = await UserModel.findOneAndUpdate({ emailId: emailId }, req.body, { runValidators: true, returnDocument: "after" });//return user document after update
+        //function findOneAndUpdate(filter, update, options) {}
+```
+
+#### All Schema Types
+- required: boolean or function, if true adds a required validator for this property
+- default: Any or function, sets a default value for the path. If the value is a function, the return value of the function is used as the default.
+- select: boolean, specifies default projections for queries
+- validate: function, adds a validator function for this property
+- get: function, defines a custom getter for this property using Object.defineProperty().
+- set: function, defines a custom setter for this property using Object.defineProperty().
+- alias: string, mongoose >= 4.10.0 only. Defines a virtual with the given name that gets/sets this path.
+- immutable: boolean, defines path as immutable. Mongoose prevents you from changing immutable paths unless the parent document has isNew: true.
+- transform: function, Mongoose calls this function when you call Document#toJSON() function, including when you JSON.stringify() a document.
