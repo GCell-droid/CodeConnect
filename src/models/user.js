@@ -1,14 +1,17 @@
 // for user schema
 const mongoose = require('mongoose');
+const validator = require('validator')
 const userSchema = mongoose.Schema({
     firstName: {
         type: String,
         required: true,
-        maxlength: 20,
-        minlength: 3
+        maxLength: 20,
+        minLength: 3
     },
     lastName: {
-        type: String
+        type: String,
+        maxLength: 20,
+        minLength: 3
     },
     gender: {
         type: String,
@@ -21,6 +24,7 @@ const userSchema = mongoose.Schema({
     age: {
         type: Number,
         min: 18
+
     },
     emailId: {
         type: String,
@@ -28,21 +32,43 @@ const userSchema = mongoose.Schema({
         unique: true,
         required: true,
         lowercase: true,
+        validate(value) {
+            if (!validator.isEmail(value))
+                throw new Error("Email Not valid")
+        }
     },
     password: {
         type: String,
-        required: true
+        required: true,
+        validate(value) {
+            if (value.length > 15)
+                throw new Error("Password exceed Limit")
+            if (!validator.isStrongPassword(value))
+                throw new Error("Use Strong Password")
+        }
     },
     photUrl: {
         type: String,
-        default: "https://static.vecteezy.com/system/resources/previews/045/944/199/non_2x/male-default-placeholder-avatar-profile-gray-picture-isolated-on-background-man-silhouette-picture-for-user-profile-in-social-media-forum-chat-greyscale-illustration-vector.jpg"
+        default: "https://static.vecteezy.com/system/resources/previews/045/944/199/non_2x/male-default-placeholder-avatar-profile-gray-picture-isolated-on-background-man-silhouette-picture-for-user-profile-in-social-media-forum-chat-greyscale-illustration-vector.jpg",
+        validate(value) {
+            if (!validator.isURL(value))
+                throw new Error("Image URL Not valid")
+        }
     },
     skills: {
-        type: [String]
+        type: [String],
+        validate(value) {
+            if (value.length > 10)
+                throw new Error("Exceed Maximum allowed no. of field")
+        }
     },
     description: {
         type: String,
-        default: "I am new here"
+        default: "I am new here",
+        validate(value) {
+            if (value.length > 100)
+                throw new Error("Exceeds Limit")
+        }
     }
 }, { timestamps: true })
 // const UserModel = mongoose.model("User", userSchema)

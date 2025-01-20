@@ -6,6 +6,23 @@ const app = express();
 app.use(express.json());// using middleware to use json format //this will work for every request to server as we are not specifying path
 app.post('/signup', async (req, res) => {
     try {
+        const ALLOWED_FIELDS = [
+            "emailId",
+            "firstName",
+            "lastName",
+            "gender",
+            "photUrl",
+            "age",
+            "password",
+            "skills",
+            "descrption"
+        ]
+        const isAllowed = Object.keys(req.body).every(k => ALLOWED_FIELDS.includes(k))
+        //Object.keys return array of key names
+        //.every returns true if every element in array satisfy that condition
+        if (!isAllowed) {
+            throw new Error("Insert Only given field")
+        }
         const user = new UserModel(req.body);
         await user.save()
         res.send("Data Added Success")
@@ -14,7 +31,7 @@ app.post('/signup', async (req, res) => {
         res.status(404).send("Unexpected Error " + error.message)
     }
 })
-//get user by emain
+//get user by email
 app.get('/user', async (req, res) => {
     try {
         const userEmail = req.body.emailId;
@@ -46,9 +63,25 @@ app.get('/feed', async (req, res) => {
 
 })
 //update user
-app.patch('/user', async (req, res) => {
+app.patch('/user/:emailId', async (req, res) => {
     try {
-        const emailId = req.body.emailId;
+        const emailId = req.params.emailId;//using dynamic route to get email id as it can't be part of allowed update, we don't want emailid to be able to updated
+        const ALLOWED_UPDATE = [
+            "firstName",
+            "lastName",
+            "gender",
+            "photUrl",
+            "age",
+            "password",
+            "skills",
+            "descrption"
+        ]
+        const isUpdate = Object.keys(req.body).every(k => ALLOWED_UPDATE.includes(k))
+        //Object.keys return array of key names
+        //.every returns true if every element in array satisfy that condition
+        if (!isUpdate) {
+            throw new Error("Field Not allowed to update")
+        }
         const user = await UserModel.findOneAndUpdate({ emailId: emailId }, req.body, { runValidators: true, returnDocument: "before" });//return user document before update
         //function findOneAndUpdate(filter, update, options) {}
         console.log(user)
