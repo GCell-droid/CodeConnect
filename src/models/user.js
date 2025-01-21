@@ -40,12 +40,10 @@ const userSchema = mongoose.Schema({
     password: {
         type: String,
         required: true,
-        validate(value) {
-            if (value.length > 15)
-                throw new Error("Password exceed Limit")
-            if (!validator.isStrongPassword(value))
-                throw new Error("Use Strong Password")
-        }
+        // validate(value) {
+        //     if (!validator.isStrongPassword(value))
+        //         throw new Error("Use Strong Password")
+        // }
     },
     photUrl: {
         type: String,

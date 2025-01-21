@@ -390,7 +390,7 @@ const user = await UserModel.findOneAndUpdate({ emailId: emailId }, req.body, { 
 - immutable: boolean, defines path as immutable. Mongoose prevents you from changing immutable paths unless the parent document has isNew: true.
 - transform: function, Mongoose calls this function when you call Document#toJSON() function, including when you JSON.stringify() a document.
 
-## API Level Data Sanitization
+### API Level Data Sanitization
 - use of basic logics
 - Data Sanitization - Add API validation for each field
 ``` js
@@ -439,4 +439,57 @@ validate(value) {
             if (!validator.isEmail(value))
                 throw new Error("Email Not valid")
         }
+```
+
+----------
+-----
+____
+## Lecture 9 Encrypting Password
+- Validation Function to validate 
+- bcrypt npm package to hash password and validate also
+- use helper function validate
+- Best way to create user using usermodel is
+``` js
+        const { firstName, lastName, password, emailId, age, gender, photUrl, skills, description } = req.body; //it extract only meaningful field
+ const user = new UserModel({ firstName, lastName, password: hashedPassword, emailId, age, gender, photUrl, skills, description });
+ // As it takes only given field. Someone can't enter unwanted field
+```
+- Using bcrypt
+#### Sign Up API with password hashing
+```js
+app.post('/signup', async (req, res) => {
+    try {
+        validateSignup(req);
+        const { firstName, lastName, password, emailId, age, gender, photUrl, skills, description } = req.body;
+        const hashedPassword = await bcrypt.hash(password, 10);//.hash returns promise
+        console.log(hashedPassword);
+        const user = new UserModel({ firstName, lastName, password: hashedPassword, emailId, age, gender, photUrl, skills, description });
+        await user.save()
+        res.send("Data Added Success")
+    }
+    catch (error) {
+        res.status(404).send("Error " + error.message)
+    }
+})
+```
+#### Sign In API
+``` js 
+// Login API
+app.post('/login', async (req, res) => {
+    try {
+        validateLogin(req);
+        const { emailId, password } = req.body;
+        const isUser = await UserModel.findOne({ emailId });
+        if (!isUser) {
+            throw new Error("Invalid Credentials")
+        }
+        const isPasswordValid = await bcrypt.compare(password, isUser.password);
+        if (isPasswordValid)
+            res.send("Login Success");
+        else
+            throw new Error("Invalid Credentials")
+    } catch (error) {
+        res.status(404).send("Error " + error.message)
+    }
+})
 ```

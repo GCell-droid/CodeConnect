@@ -1,34 +1,40 @@
 const express = require('express');
+const bcrypt = require('bcrypt')
 //correct way to connect to db
 const { dbconnect } = require('./config/database')
 const UserModel = require('./models/user.js');
 const app = express();
-app.use(express.json());// using middleware to use json format //this will work for every request to server as we are not specifying path
+const { validateSignup, validateLogin } = require('./utils/validate.js');
+app.use(express.json());
 app.post('/signup', async (req, res) => {
     try {
-        const ALLOWED_FIELDS = [
-            "emailId",
-            "firstName",
-            "lastName",
-            "gender",
-            "photUrl",
-            "age",
-            "password",
-            "skills",
-            "descrption"
-        ]
-        const isAllowed = Object.keys(req.body).every(k => ALLOWED_FIELDS.includes(k))
-        //Object.keys return array of key names
-        //.every returns true if every element in array satisfy that condition
-        if (!isAllowed) {
-            throw new Error("Insert Only given field")
-        }
-        const user = new UserModel(req.body);
+        validateSignup(req);
+        const { firstName, lastName, password, emailId, age, gender, photUrl, skills, description } = req.body;
+        const hashedPassword = await bcrypt.hash(password, 10);//.hash returns promise
+        console.log(hashedPassword);
+        const user = new UserModel({ firstName, lastName, password: hashedPassword, emailId, age, gender, photUrl, skills, description });
         await user.save()
         res.send("Data Added Success")
     }
     catch (error) {
-        res.status(404).send("Unexpected Error " + error.message)
+        res.status(404).send("Error " + error.message)
+    }
+})
+app.post('/login', async (req, res) => {
+    try {
+        validateLogin(req);
+        const { emailId, password } = req.body;
+        const isUser = await UserModel.findOne({ emailId });
+        if (!isUser) {
+            throw new Error("Invalid Credentials")
+        }
+        const isPasswordValid = await bcrypt.compare(password, isUser.password);
+        if (isPasswordValid)
+            res.send("Login Success");
+        else
+            throw new Error("Invalid Credentials")
+    } catch (error) {
+        res.status(404).send("Error " + error.message)
     }
 })
 //get user by email
