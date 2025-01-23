@@ -493,3 +493,104 @@ app.post('/login', async (req, res) => {
     }
 })
 ```
+-----
+----
+
+---
+## Lecture 10 JWT Token and Authentication
+ - When user login, server creates JWT token and send back cookie (which contain jwt token) with response. Now this cookie is stored on user browser
+ - Next time when user makes any api call, this cookie is sent with request , server validates this cookie and then responds back to api call
+ #### JWT(JSON Web Token) 
+ - It is unique token with some secret info embeded into it (encrypted hash). It is generated very differently from password hash.
+ - It has three component - header, payload(contains main data), verify signature (to verify token authenticity)
+ - to generate use this library npm i jsonwebtoken
+- To read cookie, we need middleware (cookie-parser)
+- Creating Jwt token and sending with cookie
+``` js
+var token = await jwt.sign({ id: isUser._id }, "Myserverkey"); //we can add timer to it using options
+            console.log(isUser._id)
+            res.cookie('token', token);
+            res.send("Login Success");
+```
+#### Validating Token and extracting data
+ ``` js
+ app.get('/profile', async (req, res) => {
+    try {
+        const { token } = req.cookies;
+        const { id } = await jwt.verify(token, "Myserverkey")
+        const userData = await UserModel.findById(id);
+        res.send(userData);
+    }
+    catch {
+        res.send("Re-Login !!!")
+    }
+})
+ ```
+
+#### Login (Creating Token)
+ ``` js
+ app.post('/login', async (req, res) => {
+    try {
+        validateLogin(req);
+        const { emailId, password } = req.body;
+        const isUser = await UserModel.findOne({ emailId });
+        if (!isUser) {
+            throw new Error("Invalid Credentials")
+        }
+        const isPasswordValid = await bcrypt.compare(password, isUser.password);
+        if (isPasswordValid) {
+            var token = await jwt.sign({ id: isUser._id }, "Myserverkey");
+            // console.log(isUser._id)
+            res.cookie('token', token);
+            res.send("Login Success");
+        }
+        else
+            throw new Error("Invalid Credentials")
+    } catch (error) {
+        res.status(404).send("Error " + error.message)
+    }
+})
+ ```
+
+- Using middleware to make our other api secure
+- We will write token validation inside userAuth middleware ; if we want to make any api secure we add userAuth to that api.
+#### userAuth
+``` js
+const jwt = require('jsonwebtoken');
+const UserModel = require('../models/user')
+const userAuth = async (req, res, next) => {
+    try {
+        const cookie = req.cookies;
+        const { token } = cookie;
+        if (!token) {
+            throw new Error("Login Agin :)")
+        }
+        const { id } = jwt.verify(token, "Myserverkey"); //we get decoded data
+        const userData = await UserModel.findById(id);
+        if (!userData) {
+            throw new Error("Invalid User :/")
+        }
+        req.user = userData;
+        //to avoid redundant finding user we can attack it to request.user so we can access it in another middleware
+        next();//giving control to next middleware
+    } catch (err) {
+        res.status(400).send(err.message);
+    }
+}
+module.exports = userAuth;
+```
+
+
+#### Adding middleware
+``` js
+app.get('/profile', userAuth, async (req, res) => { 
+    //added userAuth middleware now that handles all token authentication
+    try {
+        const userData = req.user;
+        res.send(userData);
+    }
+    catch (err) {
+        res.status(400).send("Error " + err.message)
+    }
+})
+```

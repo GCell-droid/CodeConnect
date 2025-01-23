@@ -13,15 +13,6 @@ const validateLogin = (req) => {
     const { emailId } = req.body;
     if (!isEmail(emailId))
         throw new Error("Invalid Email ID")
-
-    // const ALLOWED_FIELDS = [
-    //     "emailId",
-    //     "password"
-    // ]
-    // const isAllowed = Object.keys(req.body).every(k => ALLOWED_FIELDS.includes(k))
-    // if (!isAllowed) {
-    //     throw new Error("Field Not Allowed")
-    // }
 }
 module.exports = {
     validateSignup,

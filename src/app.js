@@ -5,13 +5,16 @@ const { dbconnect } = require('./config/database')
 const UserModel = require('./models/user.js');
 const app = express();
 const { validateSignup, validateLogin } = require('./utils/validate.js');
+const cookieParser = require('cookie-parser')
+const jwt = require('jsonwebtoken');
+const userAuth = require('./middlewares/userAuth.js');
 app.use(express.json());
+app.use(cookieParser());
 app.post('/signup', async (req, res) => {
     try {
         validateSignup(req);
         const { firstName, lastName, password, emailId, age, gender, photUrl, skills, description } = req.body;
-        const hashedPassword = await bcrypt.hash(password, 10);//.hash returns promise
-        console.log(hashedPassword);
+        const hashedPassword = await bcrypt.hash(password, 10);
         const user = new UserModel({ firstName, lastName, password: hashedPassword, emailId, age, gender, photUrl, skills, description });
         await user.save()
         res.send("Data Added Success")
@@ -29,19 +32,31 @@ app.post('/login', async (req, res) => {
             throw new Error("Invalid Credentials")
         }
         const isPasswordValid = await bcrypt.compare(password, isUser.password);
-        if (isPasswordValid)
+        if (isPasswordValid) {
+            var token = await jwt.sign({ id: isUser._id }, "Myserverkey"); //Hiding userid in token
+            res.cookie('token', token);
             res.send("Login Success");
+        }
         else
             throw new Error("Invalid Credentials")
     } catch (error) {
         res.status(404).send("Error " + error.message)
     }
 })
-//get user by email
+app.get('/profile', userAuth, async (req, res) => { //added userAuth middleware now that handles all token authentication
+    try {
+        const userData = req.user;
+        res.send(userData);
+    }
+    catch (err) {
+        res.status(400).send("Error " + err.message)
+    }
+
+})
 app.get('/user', async (req, res) => {
     try {
         const userEmail = req.body.emailId;
-        const user = await UserModel.find({ emailId: userEmail }); //return arrays which match emailId
+        const user = await UserModel.find({ emailId: userEmail });
         if (user.length === 0) {
             res.status(404).send("User Not Found");
         } else {
@@ -52,10 +67,9 @@ app.get('/user', async (req, res) => {
         res.status(404).send("Unexpected Error")
     }
 })
-//feed api
 app.get('/feed', async (req, res) => {
     try {
-        const feed = await UserModel.find({}); //if empty then return all elements
+        const feed = await UserModel.find({});
         if (feed.length == 0) {
             res.status(404).send("Try Again Later")
         } else {
@@ -68,10 +82,9 @@ app.get('/feed', async (req, res) => {
 
 
 })
-//update user
 app.patch('/user/:emailId', async (req, res) => {
     try {
-        const emailId = req.params.emailId;//using dynamic route to get email id as it can't be part of allowed update, we don't want emailid to be able to updated
+        const emailId = req.params.emailId;
         const ALLOWED_UPDATE = [
             "firstName",
             "lastName",
@@ -83,14 +96,11 @@ app.patch('/user/:emailId', async (req, res) => {
             "descrption"
         ]
         const isUpdate = Object.keys(req.body).every(k => ALLOWED_UPDATE.includes(k))
-        //Object.keys return array of key names
-        //.every returns true if every element in array satisfy that condition
         if (!isUpdate) {
             throw new Error("Field Not allowed to update")
         }
-        const user = await UserModel.findOneAndUpdate({ emailId: emailId }, req.body, { runValidators: true, returnDocument: "before" });//return user document before update
-        //function findOneAndUpdate(filter, update, options) {}
-        console.log(user)
+        const user = await UserModel.findOneAndUpdate({ emailId: emailId }, req.body, { runValidators: true, returnDocument: "before" });
+        // console.log(user)
         res.send("User Profile Updated")
 
     } catch (error) {
