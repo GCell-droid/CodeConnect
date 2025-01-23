@@ -1,6 +1,7 @@
-// for user schema
+const jwt = require('jsonwebtoken')
 const mongoose = require('mongoose');
-const validator = require('validator')
+const validator = require('validator');
+const bcrypt = require('bcrypt');
 const userSchema = mongoose.Schema({
     firstName: {
         type: String,
@@ -69,7 +70,19 @@ const userSchema = mongoose.Schema({
         }
     }
 }, { timestamps: true })
-// const UserModel = mongoose.model("User", userSchema)
-// model name always starts with capital letter
+
+
+//Schema Methods
+userSchema.methods.getJWT = async function () { //always use functin keyword don't use arrrow function here
+    const user = this; //'this' will point to user document that we are using
+    const token = await jwt.sign({ id: user._id }, "Myserverkey", { expiresIn: '7d' })
+    return token;
+}
+
+userSchema.methods.validatePassword = async function (passwordInputedByUser) {
+    const user = this;
+    const isPasswordValid = await bcrypt.compare(passwordInputedByUser, user.password) //always maintain order as bcrypt.compare(passwordInputedByUser,passwordInDatabase)
+    return isPasswordValid
+}
+
 module.exports = mongoose.model("User", userSchema)
-//model is basically class which will make its instance when we want to add user collection

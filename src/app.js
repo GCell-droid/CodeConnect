@@ -27,13 +27,16 @@ app.post('/login', async (req, res) => {
     try {
         validateLogin(req);
         const { emailId, password } = req.body;
-        const isUser = await UserModel.findOne({ emailId });
-        if (!isUser) {
+        const User = await UserModel.findOne({ emailId });
+        if (!User) {
             throw new Error("Invalid Credentials")
         }
-        const isPasswordValid = await bcrypt.compare(password, isUser.password);
+        // const isPasswordValid = await bcrypt.compare(password, User.password);
+        const isPasswordValid = User.validatePassword(password)
         if (isPasswordValid) {
-            var token = await jwt.sign({ id: isUser._id }, "Myserverkey"); //Hiding userid in token
+            // var token = await jwt.sign({ id: User._id }, "Myserverkey", { expiresIn: "1d" }); //Hiding userid in token
+            //we can use schema method also to generate token (written in user.js)
+            const token = await User.getJWT();
             res.cookie('token', token);
             res.send("Login Success");
         }

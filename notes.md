@@ -539,7 +539,7 @@ var token = await jwt.sign({ id: isUser._id }, "Myserverkey"); //we can add time
         }
         const isPasswordValid = await bcrypt.compare(password, isUser.password);
         if (isPasswordValid) {
-            var token = await jwt.sign({ id: isUser._id }, "Myserverkey");
+            var token = await jwt.sign({ id: isUser._id }, "Myserverkey",{ expiresIn: "7d" });
             // console.log(isUser._id)
             res.cookie('token', token);
             res.send("Login Success");
@@ -593,4 +593,29 @@ app.get('/profile', userAuth, async (req, res) => {
         res.status(400).send("Error " + err.message)
     }
 })
+```
+
+### Schema Methods -  They are like helper function to make code easy 
+- always use function keyword (don't write arrow function as 'this' performs differently in both of them)
+- 'this' will refer to particular document of userModel
+``` js
+//Schema Methods
+userSchema.methods.getJWT = async function () { //always use functin keyword don't use arrrow function here
+    const user = this; //'this' will point to user document that we are using
+    const token = await jwt.sign({ id: user._id }, "Myserverkey", { expiresIn: '7d' })
+    return token;
+}
+
+userSchema.methods.validatePassword = async function (passwordInputedByUser) {
+    const user = this;
+    const isPasswordValid = bcrypt.compare(passwordInputedByUser, user.password) //always maintain order as bcrypt.compare(passwordInputedByUser,passwordInDatabase)
+    return isPasswordValid
+}
+```
+
+##### How to use schema methods ?
+- we can use schema method when we are using some user data
+``` js
+        const User = await UserModel.findOne({ emailId }); //got user
+        const isPasswordValid = User.validatePassword(passwordInputedByUser); 
 ```
