@@ -13,7 +13,7 @@ const userAuth = async (req, res, next) => {
             throw new Error("Invalid User :/")
         }
         req.user = userData;
-        //to avoid redundant finding user we can attack it to request.user so we can access it in another middleware
+        //to avoid redundant finding user we can attach it to request.user so we can access it in another middleware
         next();//giving control to next middleware
     } catch (err) {
         res.status(400).send(err.message);

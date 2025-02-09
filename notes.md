@@ -571,7 +571,7 @@ const userAuth = async (req, res, next) => {
             throw new Error("Invalid User :/")
         }
         req.user = userData;
-        //to avoid redundant finding user we can attack it to request.user so we can access it in another middleware
+        //to avoid redundant finding user again and agin for different api calll we can attach it to request.user so we can access it in another middleware
         next();//giving control to next middleware
     } catch (err) {
         res.status(400).send(err.message);
@@ -595,7 +595,7 @@ app.get('/profile', userAuth, async (req, res) => {
 })
 ```
 
-### Schema Methods -  They are like helper function to make code easy 
+### Schema Methods -  They are like helper function to do code easy and make code modular
 - always use function keyword (don't write arrow function as 'this' performs differently in both of them)
 - 'this' will refer to particular document of userModel
 ``` js
@@ -618,4 +618,122 @@ userSchema.methods.validatePassword = async function (passwordInputedByUser) {
 ``` js
         const User = await UserModel.findOne({ emailId }); //got user
         const isPasswordValid = User.validatePassword(passwordInputedByUser); 
+```
+---
+---
+---
+## Lecture 11 Diving deep into API's and express route
+#### Planing API
+- Writing all apis in one file is bad idea
+- we will group api's and build different router like
+``` python
+# authRouter
+- POST /signup
+- POST /login
+- POST /logout
+
+#profile Router
+- GET /profile/view
+- PATCH /profile/edit
+- PATCH /profile/password
+
+#connectionRequestRouter
+- POST  /request/send/interested/:useId
+- POST /request/send/ignored/:useId
+- POST /request/review/accepted/:requestId
+- POST /request/review/rejected/:requestId
+
+#userRouter
+- GET /user/connections
+- GET /user/requests
+- GET /user/feed
+```
+- Routing refers to how an application’s endpoints (URIs) respond to client requests. 
+- A router object is an instance of middleware and routes. You can think of it as a “mini-application,” capable only of performing middleware and routing functions. Every Express application has a built-in app router.
+- A router behaves like middleware itself, so you can use it as an argument to app.use() or as the argument to another router’s use() method.
+- Router's main purpose is to send response back and keep our code clean . It will send first response that it get. Main job of express is to go one by one to route and find path and send response back
+``` js
+// Using Routes 
+app.use('/', authRouter);
+app.use('/', profileRouter)
+app.use('/', userRouter)
+```
+- Routes help to categorise api's and make our code modular
+``` js
+// Profile Route
+const express = require('express');
+const userAuth = require('../middlewares/userAuth.js');
+const profileRouter = express.Router();
+profileRouter.get('/profile', userAuth, async (req, res) => {
+    try {
+        const userData = req.user;
+        res.send(userData);
+    }
+    catch (err) {
+        res.status(400).send("Error " + err.message)
+    }
+})
+module.exports = profileRouter;
+```
+- Express goes one by one and check if router has called path or not and then send response back
+#### Logic Building for Api's
+##### Update User Profile
+``` js
+profileRouter.patch('/profile/edit', userAuth, async (req, res) => {
+    try {
+        const isEditValid = validateEditProfile(req);
+        if (!isEditValid) {
+            throw new Error(" Field Not Allowed to Edit");
+        }
+        const loggedUser = req.user;
+        Object.keys(req.body).every(key => {
+            loggedUser[key] = req.body[key];
+        })
+        // as loggedUser is instance of user of UserModel so we can do loggedUser.save and call other methods defined in user model also // don't forgot to use await
+        await loggedUser.save();
+        res.json({
+            message: "Successfully Edited",
+            user: loggedUser
+        })
+
+    } catch (err) {
+        res.status(400).send("Error " + err.message);
+    }
+})
+```
+- As loggedUser is instance of user (coming from userAuth) of UserModel so we can do loggedUser.save and call other methods defined in user model.
+- We can also res.json() :(Best Practice) to properly send response message and updated user so that we can update it on profile
+
+##### Change Password API
+``` js
+profileRouter.patch('/profile/changepassword', userAuth, async (req, res) => {
+    try {
+        const { currentPassword, newPassword } = req.body;
+        console.log(currentPassword + newPassword)
+        const loggedUser = req.user;
+        // always use await if function defined is async
+        const isPasswordValid = await loggedUser.validatePassword(currentPassword);
+        if (!isPasswordValid) {
+            throw new Error("Invalid Credentials :/")
+        }
+        const hashedPassword = await bcrypt.hash(newPassword, 10);
+        loggedUser.password = hashedPassword;
+        // loggedUser['password'] = hashedPassword;
+        await loggedUser.save();
+        res.send("Password Updated");
+    } catch (err) {
+        res.status(400).send(err.message);
+    }
+})
+```
+##### Logout Api
+``` js
+authRouter.post('/logout', userAuth, async (req, res) => {
+    //userAuth is not necessary
+    // res.clearCookie('token');
+    res.cookie('token', null, { //updated token and expiring it. or we can clear cookie also with above method
+        expires: new Date(Date.now())
+    }).send("Logout Success")
+
+})
 ```

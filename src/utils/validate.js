@@ -14,7 +14,21 @@ const validateLogin = (req) => {
     if (!isEmail(emailId))
         throw new Error("Invalid Email ID")
 }
+const validateEditProfile = (req) => {
+    const AllowedEditFields = [
+        "firstName",
+        "lastName",
+        "photoUrl",
+        "gender",
+        "description",
+        "skills",
+        "age"
+    ]
+    const isEditValid = Object.keys(req.body).every(key => AllowedEditFields.includes(key));
+    return isEditValid
+}
 module.exports = {
     validateSignup,
-    validateLogin
+    validateLogin,
+    validateEditProfile,
 }

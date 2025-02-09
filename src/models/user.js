@@ -38,13 +38,12 @@ const userSchema = mongoose.Schema({
                 throw new Error("Email Not valid")
         }
     },
+    session: {
+        type: String
+    },
     password: {
         type: String,
         required: true,
-        // validate(value) {
-        //     if (!validator.isStrongPassword(value))
-        //         throw new Error("Use Strong Password")
-        // }
     },
     photUrl: {
         type: String,
