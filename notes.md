@@ -737,3 +737,284 @@ authRouter.post('/logout', userAuth, async (req, res) => {
 
 })
 ```
+
+---
+---
+## Lecture 12 Logical DB query
+- It is not good practice to add connection requestion between two user info in user schema
+- User schema - shows identity of user
+- we can make another schema that is maintaing relation/connection request between two user schema
+- enum -  object// we can have some fixed values otherwise it thows error
+#### connection Model
+``` js
+const mongoose = require('mongoose');
+const connectionRequestSchema = new mongoose.Schema({
+    toUserId: {
+        type: mongoose.Schema.Types.ObjectId,
+        require: true
+    },
+    fromUserId: {
+        type: mongoose.Schema.Types.ObjectId,
+        require: true
+    },
+    status: {
+        type: String,
+        enum: {
+            values: ["accepted", "rejected", "interested", "ignored"],
+            message: `Value not valid`
+        },
+        require: true
+    },
+}, { timestamps: true })
+module.exports = new mongoose.model('ConnectionRequestModel', connectionRequestSchema);
+```
+#### connectionrouter
+``` js
+const express = require('express');
+const userAuth = require('../middlewares/userAuth');
+const ConnectionRequest = require('../models/connectionRequest');
+const requestRouter = express.Router();
+requestRouter.post('/request/:status/:toUserId', userAuth, async (req, res) => {
+    try {
+        const fromUserId = req.user._id;
+        const toUserId = req.params.toUserId;
+        const status = req.params.status;
+        const request = await new ConnectionRequest({
+            fromUserId,
+            toUserId,
+            status,
+        });
+        console.log("Received request:", req.params, req.user);
+        await request.save();
+        res.send({
+            message: `Request ${status}`,
+            requestData: request,
+        })
+    } catch (err) {
+        res.status(400).send("Connection Error " + err.message);
+    }
+
+})
+module.exports = requestRouter;
+
+```
+- never miss cornor cases in api calling
+- api cases like in our app is - already exist -  to himself - invalid status / user id - already got request and sending one
+- always return when using res.json 
+```js
+ const allowedStatus = ["ignored", "interested"]
+        if (!allowedStatus.includes(status)) {
+            //always use return otherwise server crashes if we try to sent multiple user request
+            return res.status(404).json({ message: `${status} is not valid` })
+        }
+        // to himself - handled
+        if (fromUserId == toUserId) {
+            return res.status(404).json({ message: `Cannot send request to own` })
+        }
+        //user id cannot be random- handled
+        const toUser = await UserModel.findById(toUserId);
+        if (!toUser) {
+            return res.status(404).json({ message: `User does not exists` })
+        }
+
+        //request exist and never forget await in db query 
+        //new or syntax
+        // const connectionreqAlreadyExist = await ConnectionRequest.findOne({
+        //     $or: [{ fromUserId: fromUserId, toUserId: toUserId }, { fromUserId: toUserId, toUserId: fromUserId }]
+        // })
+        const connectionreqAlreadySent = await ConnectionRequest.findOne(
+            { fromUserId: fromUserId, toUserId: toUserId }
+        )
+        if (connectionreqAlreadySent) {
+            return res.status(404).json({ message: `Request Already Exist` })
+        }
+        const connectionreqAlreadyGot = await ConnectionRequest.findOne(
+            { fromUserId: toUserId, toUserId: fromUserId })
+        if (connectionreqAlreadyGot) {
+            return res.status(404).json({ message: `You have already recieved request. Check Request Box` })
+        }
+```
+- Always use arrow function in schema methods
+#### pre - it is like middleware at schema level
+- it works like event handler it will work before event in schema and always call next() 
+- below function will call every time connection model saves
+``` js
+connectionRequestSchema.pre("save", function () {
+    const connectionRequest = this;
+    if (connectionRequest.fromUserId.equals(connectionRequest.toUserId)) {
+        // we need to use equals as they both are objectid type so need to parse it 
+        throw new Error("Can't send request to own id");
+    }
+    /// always use next as it is like middleware
+    next();
+
+})
+```
+#### DB Indexing in mongo uses B-Tree
+- It is to handle large data so schema method don't become too expensive
+- mongo automatically creates index for unique:true
+- else we can also use index :true
+- compound index for two parameters
+- don't create lot of index in db
+- Use indexes for frequently searched or sorted columns.
+- Avoid too many indexes on frequently updated tables.
+- Consider using covering indexes or composite indexes if multiple columns are often queried together.
+- Indexing comes with cost - Slower Write Operations and storage requirement
+``` js
+//compound index example
+connectionRequestSchema.index({ toUserId: 1, fromUserId: 1 }) 
+//1 is ascending and -1 is descending
+```
+
+## Lecture 13 Ref Populate Thought
+### Making Api for request accepted
+- handle param cases like (status can't be anything ,etc),validation is important
+- make logic that handles it (like loggedin user should be touserid and only interested one should be there)
+``` js
+requestRouter.post("/request/review/:status/:requestId", userAuth, async (req, res) => {
+    try {
+        const AllowedStatus = ["accepted", "rejected"];
+        const { status, requestId } = req.params;
+        if (!AllowedStatus.includes(status)) {
+            return res.status(400).json({ "message": "Status Not Valid" });
+        }
+        const user = req.user;
+        //only finding request that is intereseted and belong to user._id
+        const request = await ConnectionRequest.findOne({
+            _id: requestId,
+            toUserId: user._id,
+            status: "interested"
+        })
+        if (!request) {
+            return res.status(404).json({ "message": "Request Not found" });
+        }
+        request.status = status;
+        request.save();
+        return res.json({ "message": `Request ${status}`, request });
+
+    }
+    catch (err) {
+        return res.status(400).json({ "message": "Error in request review " + err.message });
+    }
+})
+```
+### Thought Process
+#### Post
+- how can attacker can exploit our db ? by adding unwanted data in db
+- verify everything / validate
+#### Get
+- sending only allowed data and don't overfetch data (unwanted)
+-----
+### Referene to other collections
+- we can use loop over user collection and get data of requests that user recieved, but that is poor way of getting data
+- we can create reference to user collection from connection collection, just add ref field in schema
+- populate - it is like join in sql
+- populate(), which lets you reference documents in other collections.
+- You can set the ref option on ObjectId, Number, String, and Buffer paths. populate() works with ObjectIds, numbers, strings, and buffers. However, we recommend using ObjectIds as _id properties (and thus ObjectIds for ref properties) unless you have a good reason not to. That is because MongoDB will set _id to an ObjectId if you create a new document without an _id property, so if you make your _id property a Number, you need to be extra careful not to insert a document without a numeric _id
+``` js
+const author = new Person({
+  _id: new mongoose.Types.ObjectId(),
+  name: 'Ian Fleming',
+  age: 50
+});
+
+await author.save();
+
+const story1 = new Story({
+  title: 'Casino Royale',
+  author: author._id // assign the _id from the person
+});
+
+await story1.save();
+```
+- Using .exec() explicitly converts it into a native JavaScript Promise, making it compatible with await and .then().
+``` js
+const story = await Story.
+  findOne({ title: 'Casino Royale' }).
+  populate('author').
+  exec();
+```
+-  This enables population, meaning you can retrieve related documents without manually querying them.
+- MongoDB (ref + .populate())
+- Stores only _id of referenced document
+- Requires .populate() to fetch referenced data
+``` js
+//schema changes
+const connectionRequestSchema = new mongoose.Schema({
+    toUserId: {
+        type: mongoose.Schema.Types.ObjectId,
+        //using ref
+        ref: "User",
+        require: true
+    },
+    fromUserId: {
+        type: mongoose.Schema.Types.ObjectId,
+        //using ref and write correct model name that is registered in db
+        ref: "User",
+        require: true
+    },
+    status: {
+        type: String,
+        enum: {
+            values: ["accepted", "rejected", "interested", "ignored"],
+            message: `Value not valid`
+        },
+        require: true
+    },
+}, { timestamps: true })
+
+
+// in user router
+userRouter.get("/user/connections", userAuth, async (req, res) => {
+    try {
+        const user = req.user;
+        const acceptedRequest = await ConnectionRequest.find({
+            toUserId: user._id,
+            status: "accepted"
+        // }).populate('fromUserId', ["firstName", "lastName", "photoUrl", "description", "gender", "age"]) //jisko populatea karna hai uski id aaegi matlab hume fromUserid ki detail chahiye
+        }).populate('fromUserId', "firstName lastName photoUrl description gender age") //jisko populatea karna hai uski id aaegi matlab hume fromUserid ki detail chahiye
+        .
+        return res.json({ "message": "Accepted Requests", acceptedRequest })
+    } catch (err) {
+        return res.status(400).json({ "message": "Error in getting accepted request box " + err.message });
+    }
+})
+```
+Step- What Happens?
+1. Query Main Collection - MongoDB fetches the main document (e.g., Story), returning only the _id reference for related documents.
+2. Query Referenced Collection - 	Mongoose performs a second query on the referenced collection (e.g., Author) to fetch the full document.
+3. Replace ObjectId -	Mongoose replaces the _id reference in the main document with the full referenced document.
+Result :	A document with populated data, mimicking a JOIN operation.
+
+#### Connection api
+- connection can be np->kartik ; pp->np and both are accepted then both should be connections
+``` js
+userRouter.get("/user/connections", userAuth, async (req, res) => {
+    try {
+        const user = req.user;
+        const acceptedRequest = await ConnectionRequest.find({
+            $or: [{
+                toUserId: user._id,
+                status: "accepted"
+            },
+            {
+                fromUserId: user._id,
+                status: "accepted"
+            }]
+        }
+        ).populate('fromUserId', SAFE_DATA_TO_GET)
+            .populate('toUserId', SAFE_DATA_TO_GET)
+        const filteredData = acceptedRequest.map(r => {
+            // we know that either one of toUserid or fromUserId will be logged in user
+            // if (r.toUserId._id == user._id) { // we can't directly equals mongo db ids so conveting ids to string
+            if (r.toUserId._id.toString() == user._id.toString()) {
+                return r.fromUserId
+            }
+            return r.toUserId;
+        })
+        return res.json({ "message": "Accepted Requests", filteredData })
+    } catch (err) {
+        return res.status(400).json({ "message": "Error in getting accepted request box " + err.message });
+    }
+})
+```

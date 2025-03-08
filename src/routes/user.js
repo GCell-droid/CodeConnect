@@ -1,20 +1,8 @@
 const express = require('express');
+const userAuth = require('../middlewares/userAuth.js')
+const ConnectionRequest = require('../models/connectionRequest.js')
 const userRouter = express.Router();
 const UserModel = require('../models/user.js');
-userRouter.get('/user', async (req, res) => {
-    try {
-        const userEmail = req.body.emailId;
-        const user = await UserModel.find({ emailId: userEmail });
-        if (user.length === 0) {
-            res.status(404).send("User Not Found");
-        } else {
-            res.send(user);
-        }
-    }
-    catch {
-        res.status(404).send("Unexpected Error")
-    }
-})
 userRouter.get('/feed', async (req, res) => {
     try {
         const feed = await UserModel.find({});
@@ -27,28 +15,48 @@ userRouter.get('/feed', async (req, res) => {
         res.status(404).send("Unexpected Error " + error.message)
     }
 })
-// userRouter.patch('/user/:emailId', async (req, res) => {
-//     try {
-//         const emailId = req.params.emailId;
-//         const ALLOWED_UPDATE = [
-//             "firstName",
-//             "lastName",
-//             "gender",
-//             "photUrl",
-//             "age",
-//             "password",
-//             "skills",
-//             "descrption"
-//         ]
-//         const isUpdate = Object.keys(req.body).every(k => ALLOWED_UPDATE.includes(k))
-//         if (!isUpdate) {
-//             throw new Error("Field Not allowed to update")
-//         }
-//         const user = await UserModel.findOneAndUpdate({ emailId: emailId }, req.body, { runValidators: true, returnDocument: "before" });
-//         res.send("User Profile Updated")
-
-//     } catch (error) {
-//         res.status(404).send("Unexpected Error " + error.message)
-//     }
-// })
+const SAFE_DATA_TO_GET = "firstName lastName photoUrl description gender age";
+userRouter.get('/user/requests', userAuth, async (req, res) => {
+    try {
+        const user = req.user;
+        const inboxArray = await ConnectionRequest.find({
+            toUserId: user._id,
+            status: "interested"
+        }).populate('fromUserId', "firstName lastName photoUrl description gender age") //another way of writing populate just write we want in string with space
+        if (inboxArray.length == 0) {
+            return res.json({ "message": "No Request at a moment" })
+        }
+        return res.json({ "message": "Request Inbox", inboxArray })
+    } catch (err) {
+        return res.status(400).json({ "message": "Error in getting request box " + err.message });
+    }
+})
+userRouter.get("/user/connections", userAuth, async (req, res) => {
+    try {
+        const user = req.user;
+        const acceptedRequest = await ConnectionRequest.find({
+            $or: [{
+                toUserId: user._id,
+                status: "accepted"
+            },
+            {
+                fromUserId: user._id,
+                status: "accepted"
+            }]
+        }
+        ).populate('fromUserId', SAFE_DATA_TO_GET)
+            .populate('toUserId', SAFE_DATA_TO_GET)//jisko populatea karna hai uski id aaegi matlab hume fromUserid ki detail chahiye
+        const filteredData = acceptedRequest.map(r => {
+            // we know that either one of toUserid or fromUserId will be logged in user
+            // if (r.toUserId._id == user._id) { // we can't directly equals mongo db ids so caonveting ids to string
+            if (r.toUserId._id.toString() == user._id.toString()) {
+                return r.fromUserId
+            }
+            return r.toUserId;
+        })
+        return res.json({ "message": "Accepted Requests", filteredData })
+    } catch (err) {
+        return res.status(400).json({ "message": "Error in getting accepted request box " + err.message });
+    }
+})
 module.exports = userRouter;

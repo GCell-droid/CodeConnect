@@ -30,6 +30,7 @@ const userSchema = mongoose.Schema({
     emailId: {
         type: String,
         trim: true,
+        //it is sufficient for indexing
         unique: true,
         required: true,
         lowercase: true,
@@ -45,7 +46,7 @@ const userSchema = mongoose.Schema({
         type: String,
         required: true,
     },
-    photUrl: {
+    photoUrl: {
         type: String,
         default: "https://static.vecteezy.com/system/resources/previews/045/944/199/non_2x/male-default-placeholder-avatar-profile-gray-picture-isolated-on-background-man-silhouette-picture-for-user-profile-in-social-media-forum-chat-greyscale-illustration-vector.jpg",
         validate(value) {
@@ -70,7 +71,7 @@ const userSchema = mongoose.Schema({
     }
 }, { timestamps: true })
 
-
+userSchema.index({ firstName: 1, lastName: 1 });
 //Schema Methods
 userSchema.methods.getJWT = async function () { //always use functin keyword don't use arrrow function here
     const user = this; //'this' will point to user document that we are using

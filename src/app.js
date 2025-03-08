@@ -4,6 +4,7 @@ const app = express();
 const cookieParser = require('cookie-parser')
 const authRouter = require('./routes/auth.js');
 const userRouter = require('./routes/user.js');
+const connectionHandle = require('./routes/connectionHandle.js')
 const profileRouter = require('./routes/profile.js');
 app.use(express.json());
 app.use(cookieParser());
@@ -11,6 +12,7 @@ app.use(cookieParser());
 app.use('/', authRouter);
 app.use('/', profileRouter)
 app.use('/', userRouter)
+app.use('/', connectionHandle)
 dbconnect().then(() => {
     console.log("DB connected Success")
     app.listen(7777, () => {
