@@ -3,35 +3,20 @@ const userAuth = require('../middlewares/userAuth');
 const ConnectionRequest = require('../models/connectionRequest');
 const requestRouter = express.Router();
 const UserModel = require('../models/user');
-const { status } = require('express/lib/response');
-const connectionRequest = require('../models/connectionRequest');
 requestRouter.post('/request/:status/:toUserId', userAuth, async (req, res) => {
     try {
         const fromUserId = req.user._id;
         const toUserId = req.params.toUserId;
         const status = req.params.status;
-        //status cannot be random- handled
         const allowedStatus = ["ignored", "interested"]
         if (!allowedStatus.includes(status)) {
-            //always use return otherwise server crashes if we try to sent multiple user request
             return res.status(404).json({ message: `${status} is not valid` })
         }
-        // to himself - handled in schema based using pre
-        // if (fromUserId == toUserId) {
-        //     return res.status(404).json({ message: `Cannot send request to own` })
-        // }
-        //user id cannot be random- handled
         const toUser = await UserModel.findById(toUserId);
         if (!toUser) {
             return res.status(404).json({ message: `User does not exists` })
         }
 
-
-        //request exist and never forget await in db query 
-        //new or syntax
-        // const connectionreqAlreadyExist = await ConnectionRequest.findOne({
-        //     $or: [{ fromUserId: fromUserId, toUserId: toUserId }, { fromUserId: toUserId, toUserId: fromUserId }]
-        // })
         const connectionreqAlreadySent = await ConnectionRequest.findOne(
             { fromUserId: fromUserId, toUserId: toUserId }
         )
@@ -66,7 +51,6 @@ requestRouter.post("/request/review/:status/:requestId", userAuth, async (req, r
             return res.status(400).json({ "message": "Status Not Valid" });
         }
         const user = req.user;
-        //only finding request that is intereseted and belong to user._id
         const request = await ConnectionRequest.findOne({
             _id: requestId,
             toUserId: user._id,

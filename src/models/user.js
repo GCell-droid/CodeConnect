@@ -72,8 +72,7 @@ const userSchema = mongoose.Schema({
 }, { timestamps: true })
 
 userSchema.index({ firstName: 1, lastName: 1 });
-//Schema Methods
-userSchema.methods.getJWT = async function () { //always use functin keyword don't use arrrow function here
+userSchema.methods.getJWT = async function () {
     const user = this; //'this' will point to user document that we are using
     const token = await jwt.sign({ id: user._id }, "Myserverkey", { expiresIn: '7d' })
     return token;
@@ -81,7 +80,7 @@ userSchema.methods.getJWT = async function () { //always use functin keyword don
 
 userSchema.methods.validatePassword = async function (passwordInputedByUser) {
     const user = this;
-    const isPasswordValid = await bcrypt.compare(passwordInputedByUser, user.password) //always maintain order as bcrypt.compare(passwordInputedByUser,passwordInDatabase)
+    const isPasswordValid = await bcrypt.compare(passwordInputedByUser, user.password)
     return isPasswordValid
 }
 

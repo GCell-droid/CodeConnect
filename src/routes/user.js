@@ -3,26 +3,47 @@ const userAuth = require('../middlewares/userAuth.js')
 const ConnectionRequest = require('../models/connectionRequest.js')
 const userRouter = express.Router();
 const UserModel = require('../models/user.js');
-userRouter.get('/feed', async (req, res) => {
+const SAFE_DATA_TO_GET = "firstName lastName photoUrl description gender age";
+userRouter.get('/feed', userAuth, async (req, res) => {
     try {
-        const feed = await UserModel.find({});
-        if (feed.length == 0) {
-            res.status(404).send("Try Again Later")
-        } else {
-            res.send(feed);
-        }
+        //pagination 
+        //query -> start with ?
+        //params ->start with :
+        let limit = req.query.limit || 10;
+        limit = limit > 10 ? 10 : limit;
+        const page = req.query.page || 1;
+        let skip = (page - 1) * limit;
+        //it is bad to overfetch 
+        const user = req.user;
+        const sentRequest = await ConnectionRequest.find({
+            $or: [{ fromUserId: user._id }, { toUserId: user._id }]
+        }).select("fromUserId toUserId");
+        // const hideUsers = sentRequest.map((f) => f.toUserId.toString() === user._id.toString() ? f.fromUserId.toString() : f.toUserId.toString())
+        const hideUsers = new Set();
+        sentRequest.forEach((f) => {
+            hideUsers.add(f.fromUserId.toString());
+            hideUsers.add(f.toUserId.toString())
+        })
+        hideUsers.add(user._id)
+        // const filteredFeed = feed.filter((f) => {
+        //     const fId = f._id.toString();
+        //     return fId !== user._id.toString() && !toIds.includes(fId);
+        // });
+        const filteredFeed = await UserModel.find({
+            _id: { $nin: Array.from(hideUsers) } //not in array of hideusers
+        }).select(SAFE_DATA_TO_GET).skip(skip).limit(limit)
+        res.send(filteredFeed);
     } catch (error) {
-        res.status(404).send("Unexpected Error " + error.message)
+        res.status(404).send("Error getting feed: " + error.message)
     }
 })
-const SAFE_DATA_TO_GET = "firstName lastName photoUrl description gender age";
 userRouter.get('/user/requests', userAuth, async (req, res) => {
     try {
         const user = req.user;
         const inboxArray = await ConnectionRequest.find({
             toUserId: user._id,
             status: "interested"
-        }).populate('fromUserId', "firstName lastName photoUrl description gender age") //another way of writing populate just write we want in string with space
+        }).populate('fromUserId', "firstName lastName photoUrl description gender age")
         if (inboxArray.length == 0) {
             return res.json({ "message": "No Request at a moment" })
         }
@@ -45,10 +66,8 @@ userRouter.get("/user/connections", userAuth, async (req, res) => {
             }]
         }
         ).populate('fromUserId', SAFE_DATA_TO_GET)
-            .populate('toUserId', SAFE_DATA_TO_GET)//jisko populatea karna hai uski id aaegi matlab hume fromUserid ki detail chahiye
+            .populate('toUserId', SAFE_DATA_TO_GET)
         const filteredData = acceptedRequest.map(r => {
-            // we know that either one of toUserid or fromUserId will be logged in user
-            // if (r.toUserId._id == user._id) { // we can't directly equals mongo db ids so caonveting ids to string
             if (r.toUserId._id.toString() == user._id.toString()) {
                 return r.fromUserId
             }
