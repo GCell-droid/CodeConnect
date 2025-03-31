@@ -3,7 +3,7 @@ const userAuth = require('../middlewares/userAuth.js')
 const ConnectionRequest = require('../models/connectionRequest.js')
 const userRouter = express.Router();
 const UserModel = require('../models/user.js');
-const SAFE_DATA_TO_GET = "firstName lastName photoUrl description gender age";
+const SAFE_DATA_TO_GET = "firstName lastName photoUrl description gender age skills";
 userRouter.get('/feed', userAuth, async (req, res) => {
     try {
         //pagination 
@@ -31,7 +31,7 @@ userRouter.get('/feed', userAuth, async (req, res) => {
         // });
         const filteredFeed = await UserModel.find({
             _id: { $nin: Array.from(hideUsers) } //not in array of hideusers
-        }).select(SAFE_DATA_TO_GET).skip(skip).limit(limit)
+        }).select(SAFE_DATA_TO_GET).skip(skip).limit(limit) //adding skip and limit for pagination
         res.send(filteredFeed);
     } catch (error) {
         res.status(404).send("Error getting feed: " + error.message)
@@ -43,9 +43,9 @@ userRouter.get('/user/requests', userAuth, async (req, res) => {
         const inboxArray = await ConnectionRequest.find({
             toUserId: user._id,
             status: "interested"
-        }).populate('fromUserId', "firstName lastName photoUrl description gender age")
+        }).populate('fromUserId', "firstName lastName photoUrl description gender age skills")
         if (inboxArray.length == 0) {
-            return res.json({ "message": "No Request at a moment" })
+            return res.json({ "message": "No Requests at a moment", inboxArray })
         }
         return res.json({ "message": "Request Inbox", inboxArray })
     } catch (err) {

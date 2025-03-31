@@ -19,10 +19,12 @@ profileRouter.patch('/profile/edit', userAuth, async (req, res) => {
             throw new Error(" Field Not Allowed to Edit");
         }
         const loggedUser = req.user;
-        Object.keys(req.body).every(key => {
+        Object.keys(req.body).forEach(key => {
             loggedUser[key] = req.body[key];
-        })
+        });
+
         await loggedUser.save();
+        console.log()
         res.json({
             message: "Successfully Edited",
             user: loggedUser

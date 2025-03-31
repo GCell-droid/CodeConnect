@@ -2,12 +2,11 @@ const jwt = require('jsonwebtoken');
 const UserModel = require('../models/user')
 const userAuth = async (req, res, next) => {
     try {
-        const cookie = req.cookies;
-        const { token } = cookie;
+        const { token } = req.cookies;
         if (!token) {
-            throw new Error("Login Agin :)")
+            return res.status(401).send("Login Again")
         }
-        const { id } = jwt.verify(token, "Myserverkey"); //we get decoded data
+        const { id } = jwt?.verify(token, "Myserverkey"); //we get decoded data
         const userData = await UserModel.findById(id);
         if (!userData) {
             throw new Error("Invalid User :/")
@@ -16,7 +15,7 @@ const userAuth = async (req, res, next) => {
         //to avoid redundant finding user we can attach it to request.user so we can access it in another middleware
         next();//giving control to next middleware
     } catch (err) {
-        res.status(400).send(err.message);
+        res.status(400).send("Auth Error:" + err.message);
     }
 }
 module.exports = userAuth;
