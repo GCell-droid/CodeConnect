@@ -6,7 +6,7 @@ const userAuth = async (req, res, next) => {
         if (!token) {
             return res.status(401).send("Login Again")
         }
-        const { id } = jwt?.verify(token, "Myserverkey"); //we get decoded data
+        const { id } = jwt?.verify(token, process.env.JWT_SECRET); //we get decoded data
         const userData = await UserModel.findById(id);
         if (!userData) {
             throw new Error("Invalid User :/")

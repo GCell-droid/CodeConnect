@@ -9,7 +9,7 @@ const connectionHandle = require('./routes/connectionHandle.js')
 const profileRouter = require('./routes/profile.js');
 const cors = require('cors')
 app.use(cors({
-    origin: "http://localhost:5173",
+    origin: ["http://localhost:5174", "https://connect-progammersfrontenet.vercel.app"],
     credentials: true
 }));
 app.use(express.json());
@@ -23,8 +23,8 @@ app.use('/', connectionHandle)
 // console.log(process.env.MONGOURI)
 dbconnect().then(() => {
     console.log("DB connected Success")
-    app.listen(7777, () => {
-        console.log("Listening to http://localhost:7777")
+    app.listen(process.env.PORT, () => {
+        console.log("Listening to PORT")
     })
 }).catch(() => {
     console.log("DB not connect")

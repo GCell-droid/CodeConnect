@@ -74,7 +74,7 @@ const userSchema = mongoose.Schema({
 userSchema.index({ firstName: 1, lastName: 1 });
 userSchema.methods.getJWT = async function () {
     const user = this; //'this' will point to user document that we are using
-    const token = await jwt.sign({ id: user._id }, "Myserverkey", { expiresIn: '7d' })
+    const token = await jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '7d' })
     return token;
 }
 
