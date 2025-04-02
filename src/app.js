@@ -1,3 +1,4 @@
+require('dotenv').config();
 const express = require('express');
 const { dbconnect } = require('./config/database')
 const app = express();
@@ -18,6 +19,8 @@ app.use('/', authRouter);
 app.use('/', profileRouter)
 app.use('/', userRouter)
 app.use('/', connectionHandle)
+
+// console.log(process.env.MONGOURI)
 dbconnect().then(() => {
     console.log("DB connected Success")
     app.listen(7777, () => {
