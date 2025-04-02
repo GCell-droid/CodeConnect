@@ -30,7 +30,7 @@ authRouter.post('/login', async (req, res) => {
         const isPasswordValid = await User.validatePassword(password)
         if (isPasswordValid) {
             const token = await User.getJWT();
-            res.cookie('token', token);
+            res.cookie('token', token, { httpOnly: true, secure: true });
             res.json(User);
         }
         else
