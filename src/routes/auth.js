@@ -43,7 +43,8 @@ authRouter.post('/logout', userAuth, async (req, res) => {
     //userAuth is not necessary
     // res.clearCookie('token');
     res.cookie('token', null, {
-        expires: new Date(Date.now())
+        httpOnly: true, secure: true, sameSite: "None",
+        expires: new Date(Date.now()),
     }).send("Logout Success")
 
 })
