@@ -9,10 +9,10 @@ userRouter.get('/feed', userAuth, async (req, res) => {
         //pagination 
         //query -> start with ?
         //params ->start with :
-        let limit = req.query.limit || 10;
-        limit = limit > 10 ? 10 : limit;
-        const page = req.query.page || 1;
-        let skip = (page - 1) * limit;
+        // let limit = req.query.limit || 10;
+        // limit = limit > 10 ? 10 : limit;
+        // const page = req.query.page || 1;
+        // let skip = (page - 1) * limit;
         //it is bad to overfetch 
         const user = req.user;
         const sentRequest = await ConnectionRequest.find({
@@ -31,7 +31,8 @@ userRouter.get('/feed', userAuth, async (req, res) => {
         // });
         const filteredFeed = await UserModel.find({
             _id: { $nin: Array.from(hideUsers) } //not in array of hideusers
-        }).select(SAFE_DATA_TO_GET).skip(skip).limit(limit) //adding skip and limit for pagination
+        }).select(SAFE_DATA_TO_GET)
+        // .skip(skip).limit(limit) //adding skip and limit for pagination
         res.send(filteredFeed);
     } catch (error) {
         res.status(404).send("Error getting feed: " + error.message)
