@@ -9,7 +9,7 @@ const connectionHandle = require('./routes/connectionHandle.js')
 const profileRouter = require('./routes/profile.js');
 const cors = require('cors')
 app.use(cors({
-    origin: ["http://localhost:5173", "https://connect-progammersfrontenet.vercel.app"],
+    origin: ["http://localhost:5173", "https://connect-progammersfrontenet.vercel.app", "http://13.61.7.169/"],
     credentials: true,
 
 }));
