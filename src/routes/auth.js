@@ -11,7 +11,9 @@ authRouter.post('/signup', async (req, res) => {
         const hashedPassword = await bcrypt.hash(password, 10);
         const user = new UserModel({ firstName, lastName, password: hashedPassword, emailId, age, gender, photUrl, skills, description });
         const token = await user.getJWT();
-        res.cookie('token', token, { httpOnly: true, secure: true, sameSite: "None" });
+        res.cookie('token', token, {
+            // httpOnly: true, secure: true, Site: "None" 
+        });
         await user.save()
         res.json(user)
     }
@@ -30,7 +32,9 @@ authRouter.post('/login', async (req, res) => {
         const isPasswordValid = await User.validatePassword(password)
         if (isPasswordValid) {
             const token = await User.getJWT();
-            res.cookie('token', token, { httpOnly: true, secure: true, sameSite: "None" });
+            res.cookie('token', token, {
+                // httpOnly: true, secure: true, Site: "None" 
+            });
             res.json(User);
         }
         else
@@ -43,7 +47,7 @@ authRouter.post('/logout', userAuth, async (req, res) => {
     //userAuth is not necessary
     // res.clearCookie('token');
     res.cookie('token', null, {
-        httpOnly: true, secure: true, sameSite: "None",
+        // httpOnly: true, secure: true, sameSite: "None",
         expires: new Date(Date.now()),
     }).send("Logout Success")
 
