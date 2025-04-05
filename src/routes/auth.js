@@ -12,7 +12,7 @@ authRouter.post('/signup', async (req, res) => {
         const user = new UserModel({ firstName, lastName, password: hashedPassword, emailId, age, gender, photUrl, skills, description });
         const token = await user.getJWT();
         res.cookie('token', token, {
-            httpOnly: true, secure: true, Site: "None"
+            httpOnly: true, secure: true, sameSite: "None"
         });
         await user.save()
         res.json(user)
@@ -33,7 +33,7 @@ authRouter.post('/login', async (req, res) => {
         if (isPasswordValid) {
             const token = await User.getJWT();
             res.cookie('token', token, {
-                httpOnly: true, secure: true, Site: "None"
+                httpOnly: true, secure: true, sameSite: "None"
             });
             res.json(User);
         }
