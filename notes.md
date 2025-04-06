@@ -1068,3 +1068,112 @@ skip = (page-1)*limit
         }).select(SAFE_DATA_TO_GET).skip(skip).limit(limit) //adding skip and limit for pagination
 ```
 - adding skip and limit for pagination
+
+## Lecture Web Sockets
+- Socket.IO is a library that enables low-latency, bidirectional (generally api are unidirectional that is client sends request and server responds) and event-based communication between a client and a server.
+- Configuration of socket
+- create http server of our already running express server
+- and pass it to socket
+### Inititalise Socket 
+#### In backened
+``` js
+const http = require('http');
+const server = http.createServer(app);
+initialiseSocket(server);
+// then change app (express one) to server.listen
+dbconnect().then(() => {
+    console.log("DB connected Success")
+    server.listen(process.env.PORT, () => {
+        console.log("Listening to PORT")
+    })
+}).catch(() => {
+    console.log("DB not connect")
+})
+
+```
+
+``` js
+const socket = require('socket.io');
+const initialiseSocket = (server) => {
+    const io = socket(server, {
+        cors: {
+            origin: ["http://localhost:5173", "https://connect-progammersfrontenet.vercel.app", "http://13.61.7.169/"],
+            credentials: true,
+        }
+    })
+    io.on("connection", (socket) => {
+        //handle events
+         //handle events
+        socket.on("joinChat", () => {
+
+        })
+        socket.on("sendMessage", () => {
+
+        })
+        socket.on("disconnect", () => {
+
+        })
+    })
+}
+module.exports = initialiseSocket;
+```
+#### In Frontened
+- npm install websocket.io
+
+``` js
+//socket
+//connection to backened
+import { io } from "socket.io-client"
+import { BASE_URL } from "./constants";
+
+export const createSocketConnection = () => {
+    return io(BASE_URL);
+}
+```
+``` js
+const Chat = () => {
+    const { toUserId } = useParams();
+    const user = useSelector()
+    useEffect(()=>{
+        const socket = createSocketConnection();
+        //making join call 
+        // emiting an event (basically connecting socket to event)
+        socket.emit("joinChat",{toUserId,fromUserId});
+    
+        //cleanup
+        // we also need to handle socket after this page unloads
+        return ()=>{
+            socket.disconnect();
+        }
+    },[]);
+    ....more
+
+    }
+```
+``` js
+const sendMessage = ()=>{
+        const socket = createSocketConnection();
+        // emitting sendMessage to server
+        if(user)
+        socket.emit("sendMessage",{sender:user,toUserId,fromUserId,message:newMessage});
+        setNewMessage("")
+    }
+    useEffect(()=>{
+        if(!fromUserId)
+            return;
+        const socket = createSocketConnection();
+        socket.emit("joinChat",{toUserId,fromUserId});
+        //when message is recieved
+        socket.on("messageRecieved",({sender,toUserId, fromUserId, message})=>{
+            console.log(sender?.firstName+" : "+message)
+            // appending message to array
+            setMessages(messages=> [...messages,{sender,message}]);
+        })
+        // handling socket connection when this component unloads
+        return ()=>{
+            socket.disconnect();
+        }
+    },[toUserId,fromUserId]);
+```
+#### Security 
+- we can increase security by making it difficult to guess roomId
