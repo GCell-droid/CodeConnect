@@ -1177,3 +1177,375 @@ const sendMessage = ()=>{
 ```
 #### Security 
 - we can increase security by making it difficult to guess roomId
+
+### Saving chat in DB
+- Chat Schema
+``` js
+const mongoose = require('mongoose');
+const messageSchema = new mongoose.Schema({
+    senderId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+        require: true,
+    },
+    text: {
+        type: String,
+        require: true,
+    }
+}, { timestamps: true })
+
+const chatSchema = new mongoose.Schema({
+    //using participants array so that multiple people can chat or group chat feature 
+    participants: [{ type: mongoose.Types.ObjectId, ref: "User", require: true }],
+    messages: [messageSchema],
+})
+
+
+const Chat = mongoose.model("Chat", chatSchema);
+module.exports = { Chat };
+```
+- Socket config
+``` js
+socket.on("sendMessage", async ({ senderId, toUserId, fromUserId, message }) => {
+            try {
+                const roomId = getRoomId(toUserId, fromUserId);
+                //if chat exist or not
+                let chat = await Chat.findOne({ participants: { $all: [toUserId, senderId] } });
+                if (!chat) {
+                    chat = await new Chat({
+                        participants: [senderId, toUserId],
+                        messages: []
+                    })
+                }
+                chat.messages.push({ senderId: senderId, text: message });
+                await chat.save();
+                io.to(roomId).emit("messageRecieved", { senderId, toUserId, fromUserId, message });
+            } catch (err) {
+
+            }
+        })
+```
+
+### Final Files
+#### Backened
+- Database Model
+``` js
+const mongoose = require('mongoose');
+const messageSchema = new mongoose.Schema({
+    senderId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+        require: true,
+    },
+    text: {
+        type: String,
+        require: true,
+    },
+    status: {
+        type: String,
+        default: "Not Seen",
+        validate(value) {
+            if (!["Seen", "Not Seen"].includes(value)) {
+                throw new Error("Message Status Not Valid")
+            }
+        }
+    }
+}, { timestamps: true })
+
+const chatSchema = new mongoose.Schema({
+    //using participants array so that multiple people can chat or group chat feature 
+    participants: [{ type: mongoose.Types.ObjectId, ref: "User", require: true }],
+    messages: [messageSchema],
+})
+
+
+const Chat = mongoose.model("Chat", chatSchema);
+module.exports = { Chat };
+```
+
+- Chat Route
+``` js
+const express = require('express');
+const userAuth = require('../middlewares/userAuth');
+const { Chat } = require('../models/chat');
+const connectionRequest = require('../models/connectionRequest');
+const chatRouter = express.Router();
+chatRouter.get("/chat/:toUserId", userAuth, async (req, res) => {
+    const fromUserId = req.user._id;
+    const { toUserId } = req.params;
+    try {
+        const areFriend = await connectionRequest.findOne({
+            $or: [{
+                fromUserId: toUserId,
+                toUserId: fromUserId,
+                status: "accepted"
+            },
+            {
+                toUserId: toUserId,
+                fromUserId: fromUserId,
+                status: "accepted"
+            }]
+        })
+        if (!areFriend) {
+            throw new Error("Not Friends, Sent Connection Request First");
+        }
+        let chat = await Chat.findOne({ participants: { $all: [fromUserId, toUserId] } }).populate({
+            path: "messages.senderId",
+            select: "firstName photoUrl"
+        });
+        if (!chat) {
+            chat = new Chat({
+                participants: [fromUserId, toUserId],
+                messages: [],
+            })
+            await chat.save();
+        }
+        res.json(chat);
+
+    } catch (err) {
+        res.status(401).send(err.message)
+    }
+})
+module.exports = chatRouter
+```
+- Socket.io
+``` js
+
+const socket = require('socket.io');
+const crypto = require('crypto');
+const { Chat } = require('../models/chat');
+const connectionRequest = require('../models/connectionRequest');
+const initialiseSocket = (server) => {
+    const io = socket(server, {
+        cors: {
+            origin: ["http://localhost:5173", "https://connect-progammersfrontenet.vercel.app", "http://13.61.7.169/"],
+            credentials: true,
+        }
+    })
+    const getRoomId = (toUserId, fromUserId) => {
+        return crypto.createHash('sha256').update([toUserId, fromUserId].sort().join("$$")).digest('hex');
+    }
+    io.on("connection", (socket) => {
+        socket.on("joinChat", async ({ toUserId, fromUserId }) => {
+            const areFriend = await connectionRequest.findOne({
+                $or: [{
+                    fromUserId: toUserId,
+                    toUserId: fromUserId,
+                    status: "accepted"
+                },
+                {
+                    toUserId: toUserId,
+                    fromUserId: fromUserId,
+                    status: "accepted"
+                }]
+            })
+            if (areFriend) {
+                const roomId = getRoomId(toUserId, fromUserId);
+                socket.join(roomId)
+            }
+        })
+        socket.on("sendMessage", async ({ sender, toUserId, fromUserId, message }) => {
+            try {
+                const areFriend = await connectionRequest.findOne({
+                    $or: [{
+                        fromUserId: toUserId,
+                        toUserId: fromUserId,
+                        status: "accepted"
+                    },
+                    {
+                        toUserId: toUserId,
+                        fromUserId: fromUserId,
+                        status: "accepted"
+                    }]
+                })
+                if (areFriend) {
+                    const roomId = getRoomId(toUserId, fromUserId);
+                    //if chat exist or not
+                    let chat = await Chat.findOne({ participants: { $all: [toUserId, fromUserId] } });
+                    if (!chat) {
+                        chat = await new Chat({
+                            participants: [fromUserId, toUserId],
+                            messages: []
+                        })
+                    }
+                    //pushing message to chat array
+                    chat.messages.push({ senderId: fromUserId, text: message });
+                    await chat.save();
+                    io.to(roomId).emit("messageRecieved", { sender, toUserId, fromUserId, message });
+                } else {
+                    throw new Error("Not Friends, Sent Connection First")
+                }
+            } catch (err) {
+            }
+        })
+        socket.on("disconnect", () => {
+
+        })
+    })
+}
+module.exports = initialiseSocket;
+```
+#### Frontened
+- chat.jsx
+``` jsx
+import React, { useEffect, useRef, useState } from "react";
+import { useNavigate, useParams } from "react-router";
+import { createSocketConnection } from "../utils/socket";
+import { useSelector } from "react-redux";
+import axios from "axios";
+import { BASE_URL } from "../utils/constants";
+const Chat = () => {
+  const { toUserId } = useParams();
+  const user = useSelector((store) => store.user);
+  const [newMessage, setNewMessage] = useState("");
+  const [messages, setMessages] = useState([]);
+  const fromUserId = user?._id;
+  const sendMessage = () => {
+    const socket = createSocketConnection();
+    // emitting sendMessage to server
+    if (user)
+      socket.emit("sendMessage", {
+        sender: user,
+        toUserId,
+        fromUserId,
+        message: newMessage,
+      });
+    setNewMessage("");
+  };
+  const getChat = async () => {
+    const messagesGot = await axios.get(
+      BASE_URL + `/chat/${toUserId}`,
+      {
+        withCredentials: true,
+      }
+    );
+    const m = messagesGot?.data?.messages?.map((msg) => {
+      return {
+        sender: {
+          _id: msg.senderId._id,
+          firstName: msg.senderId.firstName,
+          photoUrl: msg.senderId.photoUrl,
+        },
+        message: msg.text,
+      };
+    });
+
+    console.log(messagesGot?.data?.messages);
+    setMessages(m);
+  };
+  const messagesEndRef = useRef(null);
+
+  // Auto-scroll to bottom whenever messages change
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+  useEffect(() => {
+    getChat();
+  }, []);
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
+  useEffect(() => {
+    if (!fromUserId) return;
+    const socket = createSocketConnection();
+    socket.emit("joinChat", { toUserId, fromUserId });
+    //when message is recieved
+    socket.on(
+      "messageRecieved",
+      ({ sender, toUserId, fromUserId, message }) => {
+        console.log(sender?.firstName + " : " + message);
+        setMessages((messages) => [...messages, { sender, message }]);
+      }
+    );
+    // handling socket connection when this component unloads
+    return () => {
+      socket.disconnect();
+    };
+  }, [toUserId, fromUserId]);
+  return (
+    <div className="flex flex-col items-center justify-between h-[90vh] bg-base-100 dark:bg-neutral text-base-content p-5 overflow-hidden">
+      <div className="flex flex-col w-2/3 bg-base-200 dark:bg-base-300 mt-5 rounded-xl shadow-md h-6/7">
+        <div className="flex-grow max-h-full overflow-y-auto p-5 space-y-4">
+          {messages.map((m, index) => {
+            if (m.sender?._id === user?._id) {
+              return (
+                <div className="chat chat-end" key={index}>
+                  <div className="chat-image avatar">
+                    <div className="w-10 rounded-full">
+                      <img
+                        alt="Tailwind CSS chat bubble component"
+                        src={m?.sender?.photoUrl}
+                      />
+                    </div>
+                  </div>
+                  <div className="chat-header">
+                    {m.sender.firstName}
+                  </div>
+                  <div className="chat-bubble bg-primary text-primary-content">
+                    {m.message}
+                  </div>
+                </div>
+              );
+            } else {
+              return (
+                <div className="chat chat-start" key={index}>
+                  <div className="chat-image avatar">
+                    <div className="w-10 rounded-full">
+                      <img
+                        alt="Tailwind CSS chat bubble component"
+                        src={m?.sender?.photoUrl}
+                      />
+                    </div>
+                  </div>
+                  <div className="chat-header">
+                    {m?.sender?.firstName}
+                  </div>
+                  <div className="chat-bubble bg-accent text-accent-content">
+                    {m.message}
+                  </div>
+                </div>
+              );
+            }
+          })}
+          <div ref={messagesEndRef} />
+        </div>
+
+        {/* Input Section */}
+        <div className="flex items-center gap-2 p-3 bg-base-300 dark:bg-base-200 rounded-b-xl">
+          <input
+            type="text"
+            placeholder="Type a message"
+            className="input input-bordered w-full"
+            value={newMessage}
+            onChange={(e) => {
+              setNewMessage(e.target.value);
+            }}
+          />
+          <button className="btn btn-primary" onClick={sendMessage}>
+            Send
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default Chat;
+
+```
+### On production
+- Normally it will not work, we have to do this in frontened in socket config
+``` js
+import { io } from "socket.io-client"
+import { BASE_URL } from "./constants";
+
+export const createSocketConnection = () => {
+    if (location.hostname === "localhost")
+    //our socket connection happens on /socket see in network tab 
+        return io(BASE_URL);
+    else {
+        //by doing this our network connection will happen on /api/socket on production we allowed this
+        return io("/", { path: "/api/socket.io" })
+    }
+}
+```

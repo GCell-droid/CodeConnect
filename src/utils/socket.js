@@ -1,4 +1,7 @@
 const socket = require('socket.io');
+const crypto = require('crypto');
+const { Chat } = require('../models/chat');
+const connectionRequest = require('../models/connectionRequest');
 const initialiseSocket = (server) => {
     const io = socket(server, {
         cors: {
@@ -6,24 +9,61 @@ const initialiseSocket = (server) => {
             credentials: true,
         }
     })
-    const getRoomId = () => {
-
+    const getRoomId = (toUserId, fromUserId) => {
+        return crypto.createHash('sha256').update([toUserId, fromUserId].sort().join("$$")).digest('hex');
     }
     io.on("connection", (socket) => {
-        //handle events
-        socket.on("joinChat", ({ toUserId, fromUserId }) => {
-            // creating room in which two individual can chat
-            // room id is used to identify which is chating to whom (all member of room will recieve the message)
-            // sorting so that both of them connects to same roomId. so they can chat
-            const roomId = [toUserId, fromUserId].sort().join("_")
-            socket.join(roomId)
-            //joining room so that he can see message that it has recieved in that room
+        socket.on("joinChat", async ({ toUserId, fromUserId }) => {
+            const areFriend = await connectionRequest.findOne({
+                $or: [{
+                    fromUserId: toUserId,
+                    toUserId: fromUserId,
+                    status: "accepted"
+                },
+                {
+                    toUserId: toUserId,
+                    fromUserId: fromUserId,
+                    status: "accepted"
+                }]
+            })
+            if (areFriend) {
+                const roomId = getRoomId(toUserId, fromUserId);
+                socket.join(roomId)
+            }
         })
-        socket.on("sendMessage", ({ sender, toUserId, fromUserId, message }) => {
-            const roomId = [toUserId, fromUserId].sort().join("_");
-            // console.log(toUserId + " : " + message);
-            //sending message to roomId and emitting (emitting means basically sending to server something with path (like messageRecieved))
-            io.to(roomId).emit("messageRecieved", { sender, toUserId, fromUserId, message });
+        socket.on("sendMessage", async ({ sender, toUserId, fromUserId, message }) => {
+            try {
+                const areFriend = await connectionRequest.findOne({
+                    $or: [{
+                        fromUserId: toUserId,
+                        toUserId: fromUserId,
+                        status: "accepted"
+                    },
+                    {
+                        toUserId: toUserId,
+                        fromUserId: fromUserId,
+                        status: "accepted"
+                    }]
+                })
+                if (areFriend) {
+                    const roomId = getRoomId(toUserId, fromUserId);
+                    //if chat exist or not
+                    let chat = await Chat.findOne({ participants: { $all: [toUserId, fromUserId] } });
+                    if (!chat) {
+                        chat = await new Chat({
+                            participants: [fromUserId, toUserId],
+                            messages: []
+                        })
+                    }
+                    //pushing message to chat array
+                    chat.messages.push({ senderId: fromUserId, text: message });
+                    await chat.save();
+                    io.to(roomId).emit("messageRecieved", { sender, toUserId, fromUserId, message });
+                } else {
+                    throw new Error("Not Friends, Sent Connection First")
+                }
+            } catch (err) {
+            }
         })
         socket.on("disconnect", () => {
 

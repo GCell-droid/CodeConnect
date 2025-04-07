@@ -10,6 +10,7 @@ const profileRouter = require('./routes/profile.js');
 const http = require('http');
 const cors = require('cors');
 const initialiseSocket = require('./utils/socket.js');
+const chatRouter = require('./routes/chatroute.js');
 app.use(cors({
     origin: ["http://localhost:5173", "https://connect-progammersfrontenet.vercel.app", "http://13.61.7.169/"],
     credentials: true,
@@ -20,6 +21,7 @@ app.use('/', authRouter);
 app.use('/', profileRouter)
 app.use('/', userRouter)
 app.use('/', connectionHandle)
+app.use('/', chatRouter);
 const server = http.createServer(app);
 initialiseSocket(server);
 dbconnect().then(() => {
