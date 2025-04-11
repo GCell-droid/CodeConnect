@@ -1,4 +1,6 @@
 require('dotenv').config();
+const http = require('http');
+const cors = require('cors');
 const express = require('express');
 const { dbconnect } = require('./config/database')
 const app = express();
@@ -7,8 +9,6 @@ const authRouter = require('./routes/auth.js');
 const userRouter = require('./routes/user.js');
 const connectionHandle = require('./routes/connectionHandle.js')
 const profileRouter = require('./routes/profile.js');
-const http = require('http');
-const cors = require('cors');
 const initialiseSocket = require('./utils/socket.js');
 const chatRouter = require('./routes/chatroute.js');
 app.use(cors({

@@ -1549,3 +1549,185 @@ export const createSocketConnection = () => {
     }
 }
 ```
+
+## .env
+- as code runs from top to bottom, so when we are requiring something in module then require should be on top of that module to work
+``` js
+// Not works
+const express = require('express');
+const { dbconnect } = require('./config/database')
+const app = express();
+const cookieParser = require('cookie-parser')
+const authRouter = require('./routes/auth.js');
+const userRouter = require('./routes/user.js');
+const connectionHandle = require('./routes/connectionHandle.js')
+const profileRouter = require('./routes/profile.js');
+const http = require('http');
+const cors = require('cors');
+const initialiseSocket = require('./utils/socket.js');
+const chatRouter = require('./routes/chatroute.js');
+require('dotenv').config();///////////<-Not Here->
+
+// Works
+require('dotenv').config();//////////<-Here->
+const express = require('express');
+const { dbconnect } = require('./config/database')
+const app = express();
+const cookieParser = require('cookie-parser')
+const authRouter = require('./routes/auth.js');
+const userRouter = require('./routes/user.js');
+const connectionHandle = require('./routes/connectionHandle.js')
+const profileRouter = require('./routes/profile.js');
+const http = require('http');
+const cors = require('cors');
+const initialiseSocket = require('./utils/socket.js');
+const chatRouter = require('./routes/chatroute.js');
+```
+
+
+
+
+# Season 3
+## Lecture 1
+### EC2 Instance
+- An EC2 (Elastic Compute Cloud) instance is a virtual server in Amazon Web Services (AWS) that provides scalable computing capacity in the cloud. It allows you to run applications and workloads on AWS without needing to manage physical hardware.
+- build
+``` js
+// setup key file - run as administrator
+whoami
+icacls "devsecret.pem" /inheritance:r /grant "nitesh:R" /remove Administrators SYSTEM "Authenticated Users" "Users"
+icacls "devsecret.pem"
+
+// open terminal
+ssh -i "devsecret.pem" ubuntu@ec2-13-61-7-169.eu-north-1.compute.amazonaws.com
+
+// setup frontened
+// ngnix
+sudo systemctl start nginx
+```
+- copy build files to /var/www/html/
+-scp -copy
+ sudo scp -r dist/* /var/www/html/
+ - enable port 80 so that nginx starts working 
+
+``` js
+// setup backened
+```
+- we have to enable aws ip from mongo also
+- and also port no. in ec2 instance
+- when we close teminal backened stops so need package that enables backened to run in background - pm2 (process manager)
+- npm install pm2 -g
+- pm2 logs - command to check
+- pm2 flush <NameofApplication> - to stop process 
+- pm2 list
+- pm2 stop <Name>
+- pm2 delete <name>
+- pm2 start npm --name "devConnectBackened" -- start
+- now backened running in background
+
+### ngnix mapping port to /api
+- ngnix proxy pass
+- whenever we make any call it to ip , it first goes to ngnix.
+- ngnix can also act as load balancer
+``` js
+// - config nginx file
+ sudo nano /etc/nginx/sites-available/default
+
+//  configurations
+location /api/ {
+    proxy_pass http://localhost:7777/;
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection 'upgrade';
+    proxy_set_header Host $host;
+    proxy_cache_bypass $http_upgrade;
+}
+
+```
+- restart nginx
+sudo systemctl restart nginx
+
+#### nginx config for refresh loading
+``` js
+location / {
+    try_files $uri /index.html;
+}
+
+location /api/ {
+    proxy_pass http://localhost:7777/;
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection 'upgrade';
+    proxy_set_header Host $host;
+    proxy_cache_bypass $http_upgrade;
+}
+
+```
+#### Explaination:-  **why that change fixed it**:
+
+---
+
+### 🎯 The Problem
+
+When you typed `/login` in the browser, Nginx looked for a file called `/login` on your server (because of this line in your old config):
+
+```nginx
+try_files $uri $uri/ =404;
+```
+
+This means:
+1. Try to find a file matching the URL path (`$uri`).
+2. If it doesn't exist, try treating it as a directory (`$uri/`).
+3. If still not found, return a 404.
+
+Since there was **no real file or folder named `/login`**, it showed:
+
+> `404 Not Found nginx/1.24.0`
+
+---
+
+
+You updated the config to:
+
+```nginx
+try_files $uri /index.html;
+```
+
+This means:
+1. Try to find a file matching the URL path.
+2. If it doesn’t exist (like `/login`), **load `/index.html` instead**.
+
+`index.html` is the entry point of your React app — it boots up and handles routing with React Router (or whatever router you're using).
+
+---
+
+### 🚀 Summary
+
+| Without fix | With fix |
+|-------------|----------|
+| Nginx looks for actual files | Nginx serves `index.html` for all unknown paths |
+| `/login` gives 404 | `/login` boots React app and renders the route |
+| Client-side routes break | Client-side routing works |
+
+Let me know if you want this added to a `README` or need help setting this up for production builds too.
+
+
+
+
+------
+## AWS SES
+- We need to create new user IAM and give it permission to run service
+
+## Cron Jobs
+- All scheduling things are done using CRON Jobs
+- For eg, sending mail to every one who got connection request at 8 am morning 
+- Handling Date with date-fns package
+- cron.guru webpage to simulate cron string
+- bull, beequeue package to maintain queue, when no. of users are increased then sending email can be expensive to we can send mails in batches so that it is non blocking.
+
+
+## Payment
+- First order is created /createorder
+- then payment verification /verifypayment
+- backened connects to razor pay.
+- always relay on backened for amount (value) in order because someone can alter it in frontened and then can buy it in less amount
